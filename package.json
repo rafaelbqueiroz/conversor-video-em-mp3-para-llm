@@ -1,0 +1,33 @@
+{
+  "name": "video-to-mp3",
+  "version": "1.0.0",
+  "description": "Conversor de vídeo para MP3 com suporte a múltiplos formatos",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "nodemon server/index.js",
+    "serve-client": "npx serve client"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "keywords": [
+    "video",
+    "mp3",
+    "converter",
+    "ffmpeg",
+    "audio-extraction"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "fluent-ffmpeg": "^2.1.2",
+    "multer": "^1.4.5-lts.1",
+    "socket.io": "^4.7.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}

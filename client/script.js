@@ -1,7 +1,7 @@
-// Configuração do endpoint do backend (altere para a URL do seu servidor)
+// Configuração do endpoint do backend
 const API_URL = window.location.hostname === 'localhost' 
     ? 'http://localhost:3001' 
-    : 'https://seu-backend.com'; // Altere para a URL do seu backend em produção
+    : 'https://seu-backend.com';
 
 const socket = io(API_URL, {
     transports: ['websocket'],
@@ -13,6 +13,7 @@ const socket = io(API_URL, {
 
 const form = document.getElementById('uploadForm');
 const fileInput = document.getElementById('fileInput');
+const uploadButton = document.getElementById('uploadButton');
 const progressContainer = document.getElementById('progress-container');
 const progressBar = document.getElementById('progress');
 const progressValue = document.getElementById('progress-value');
@@ -20,6 +21,49 @@ const statusMessage = document.getElementById('status-message');
 const downloadContainer = document.getElementById('download-container');
 const downloadLink = document.getElementById('download-link');
 const dropZone = document.getElementById('drop-zone');
+
+// Desabilitar botão inicialmente
+uploadButton.disabled = true;
+
+// Monitorar seleção de arquivo
+fileInput.addEventListener('change', handleFileSelect);
+
+function handleFileSelect(e) {
+    const file = e.target.files[0];
+    if (file) {
+        validateAndUpdateUI(file);
+    } else {
+        resetUI();
+    }
+}
+
+function validateAndUpdateUI(file) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    const validExtensions = ['ts', 'mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', 'm4v', 'mpg', 'mpeg', '3gp', '3g2'];
+    
+    if (validExtensions.includes(ext)) {
+        uploadButton.disabled = false;
+        updateStatus(`Arquivo selecionado: ${file.name} (${formatFileSize(file.size)})`, 'info');
+        dropZone.classList.add('file-selected');
+    } else {
+        uploadButton.disabled = true;
+        updateStatus(`Formato não suportado. Use: ${validExtensions.join(', ')}`, 'error');
+        dropZone.classList.remove('file-selected');
+    }
+}
+
+function resetUI() {
+    uploadButton.disabled = true;
+    dropZone.classList.remove('file-selected');
+    updateStatus('Nenhum arquivo selecionado', 'info');
+}
+
+function formatFileSize(bytes) {
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    if (bytes === 0) return '0 Byte';
+    const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+    return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
+}
 
 // Debug logs
 socket.on('connect', () => {
@@ -41,14 +85,10 @@ form.onsubmit = async (e) => {
         return;
     }
 
-    // Validar extensão do arquivo
-    const ext = file.name.split('.').pop().toLowerCase();
-    const validExtensions = ['ts', 'mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', 'm4v', 'mpg', 'mpeg', '3gp', '3g2'];
-    if (!validExtensions.includes(ext)) {
-        updateStatus('Formato de arquivo não suportado. Formatos aceitos: ' + validExtensions.join(', '), 'error');
-        return;
-    }
-
+    // Desabilitar botão durante o upload
+    uploadButton.disabled = true;
+    uploadButton.classList.add('loading');
+    
     // Mostrar container de progresso
     progressContainer.style.display = 'block';
     downloadContainer.style.display = 'none';
@@ -60,17 +100,41 @@ form.onsubmit = async (e) => {
 
     try {
         console.log('Iniciando upload para:', API_URL + '/upload');
-        const response = await fetch(API_URL + '/upload', {
-            method: 'POST',
-            body: formData
+        
+        const xhr = new XMLHttpRequest();
+        
+        // Monitorar progresso do upload
+        xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+                const percentComplete = (event.loaded / event.total) * 100;
+                updateProgress(percentComplete);
+                updateStatus(`Enviando arquivo: ${percentComplete.toFixed(1)}%`, 'info');
+            }
+        };
+
+        // Configurar promessa para o XHR
+        const uploadPromise = new Promise((resolve, reject) => {
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    try {
+                        resolve(JSON.parse(xhr.responseText));
+                    } catch (e) {
+                        reject(new Error('Resposta inválida do servidor'));
+                    }
+                } else {
+                    reject(new Error(`Erro ${xhr.status}: ${xhr.statusText}`));
+                }
+            };
+            xhr.onerror = () => reject(new Error('Erro de rede'));
         });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(errorText || 'Erro no upload');
-        }
+        // Configurar e enviar XHR
+        xhr.open('POST', API_URL + '/upload', true);
+        xhr.send(formData);
 
-        const data = await response.json();
+        // Aguardar resposta
+        const data = await uploadPromise;
+        
         console.log('Upload bem-sucedido:', data);
         updateStatus('Arquivo recebido, iniciando conversão...', 'info');
         
@@ -79,19 +143,22 @@ form.onsubmit = async (e) => {
         console.error('Erro durante upload:', error);
         updateStatus('Erro: ' + error.message, 'error');
         progressContainer.style.display = 'none';
+        uploadButton.disabled = false;
+        uploadButton.classList.remove('loading');
     }
 };
 
 // Funções de atualização da interface
 function updateStatus(message, type = 'info') {
     statusMessage.textContent = message;
-    statusMessage.className = 'status-' + type;
+    statusMessage.className = `status-${type}`;
     console.log(`[${type}] ${message}`);
 }
 
 function updateProgress(percent) {
-    progressBar.style.width = percent + '%';
-    progressValue.textContent = Math.round(percent);
+    const formattedPercent = Math.min(100, Math.max(0, percent)); // Garantir entre 0 e 100
+    progressBar.style.width = formattedPercent + '%';
+    progressValue.textContent = Math.round(formattedPercent);
 }
 
 // Socket.IO event handlers
@@ -103,15 +170,22 @@ socket.on('conversionProgress', (data) => {
 
 socket.on('conversionComplete', (data) => {
     console.log('Conversão concluída:', data);
-    updateStatus('Conversão concluída!', 'success');
+    updateStatus('Conversão concluída! Clique abaixo para baixar.', 'success');
     downloadContainer.style.display = 'block';
     downloadLink.href = API_URL + data.downloadUrl;
     downloadLink.download = data.filename;
+    
+    // Resetar interface para novo upload
+    uploadButton.disabled = false;
+    uploadButton.classList.remove('loading');
+    resetUI();
 });
 
 socket.on('conversionError', (error) => {
     console.error('Erro na conversão:', error);
     updateStatus('Erro na conversão: ' + error.message, 'error');
+    uploadButton.disabled = false;
+    uploadButton.classList.remove('loading');
 });
 
 // Drag and drop
@@ -150,6 +224,6 @@ function handleDrop(e) {
     
     if (file) {
         console.log('Arquivo recebido via drag&drop:', file.name);
-        form.requestSubmit();
+        validateAndUpdateUI(file);
     }
 }

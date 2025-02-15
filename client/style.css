@@ -4,6 +4,7 @@ body {
     padding: 20px;
     background-color: #f5f5f5;
     color: #333;
+    line-height: 1.6;
 }
 
 .container {
@@ -45,6 +46,7 @@ h1 {
     transition: all 0.3s ease;
     position: relative;
     cursor: pointer;
+    background: #fafafa;
 }
 
 .upload-area.highlight {
@@ -55,6 +57,7 @@ h1 {
 .upload-icon {
     font-size: 3em;
     margin-bottom: 10px;
+    color: #666;
 }
 
 input[type="file"] {
@@ -91,17 +94,27 @@ button:hover {
     background-color: #1b5eb3;
 }
 
+button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
 #progress-container {
     margin-top: 30px;
+    padding: 20px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .progress-bar {
     width: 100%;
     height: 20px;
-    background-color: #eee;
+    background-color: #f0f0f0;
     border-radius: 10px;
     overflow: hidden;
     margin-bottom: 10px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .progress-fill {
@@ -109,6 +122,24 @@ button:hover {
     height: 100%;
     background-color: #4CAF50;
     transition: width 0.3s ease;
+    border-radius: 10px;
+    background-image: linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.15) 25%,
+        transparent 25%,
+        transparent 50%,
+        rgba(255, 255, 255, 0.15) 50%,
+        rgba(255, 255, 255, 0.15) 75%,
+        transparent 75%,
+        transparent
+    );
+    background-size: 40px 40px;
+    animation: progress-bar-stripes 1s linear infinite;
+}
+
+@keyframes progress-bar-stripes {
+    from { background-position: 40px 0; }
+    to { background-position: 0 0; }
 }
 
 .progress-text {
@@ -116,18 +147,41 @@ button:hover {
     color: #666;
     margin: 10px 0;
     font-size: 1.1em;
+    font-weight: 500;
 }
 
 #status-message {
     text-align: center;
-    color: #666;
     margin: 15px 0;
+    padding: 10px;
+    border-radius: 4px;
     font-size: 1.1em;
+}
+
+.status-error {
+    background-color: #fee;
+    color: #c00;
+    border: 1px solid #fcc;
+}
+
+.status-success {
+    background-color: #efe;
+    color: #070;
+    border: 1px solid #cfc;
+}
+
+.status-info {
+    background-color: #f0f7ff;
+    color: #004085;
+    border: 1px solid #b8daff;
 }
 
 #download-container {
     text-align: center;
     margin-top: 20px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
 }
 
 .download-button {
@@ -139,14 +193,41 @@ button:hover {
     border-radius: 6px;
     transition: background-color 0.3s;
     font-size: 1.1em;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .download-button:hover {
     background-color: #3d8b40;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 .download-icon {
     margin-right: 8px;
+}
+
+/* Loading spinner for button */
+.loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.loading:after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    top: 50%;
+    right: 10px;
+    margin-top: -10px;
+    border: 3px solid rgba(255,255,255,.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 
 /* Responsividade */
@@ -161,5 +242,10 @@ button:hover {
     
     h1 {
         font-size: 1.5em;
+    }
+
+    button, .download-button {
+        padding: 12px;
+        font-size: 1em;
     }
 }

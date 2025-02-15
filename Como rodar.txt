@@ -1,0 +1,3 @@
+Como rodar?
+
+C:\ts-to-mp4>node server/index.js

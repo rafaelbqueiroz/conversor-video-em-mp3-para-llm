@@ -1,56 +1,155 @@
-// Get Uppy instance from global window.Uppy
-const uppy = new Uppy.Core({
-    restrictions: {
-        maxFileSize: 5 * 1024 * 1024 * 1024, // 5GB (ajuste conforme necessário)
-        allowedFileTypes: ['.ts'], // Apenas arquivos .ts
-    },
-    autoProceed: false, // O usuário precisa clicar para iniciar
-})
-.use(Uppy.Dashboard, {
-    inline: true,
-    target: '#uppy-container',
-    proudlyDisplayPoweredByUppy: false,
-})
-.use(Uppy.XHRUpload, {
-    endpoint: '/upload',
-    fieldName: 'videoFile',
-    chunkSize: 10 * 1024 * 1024, // 10MB (ajuste conforme necessário)
+// Configuração do endpoint do backend (altere para a URL do seu servidor)
+const API_URL = window.location.hostname === 'localhost' 
+    ? 'http://localhost:3001' 
+    : 'https://seu-backend.com'; // Altere para a URL do seu backend em produção
+
+const socket = io(API_URL, {
+    transports: ['websocket'],
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    reconnectionAttempts: 5
 });
 
-const socket = io(); // Conecta ao servidor Socket.IO
+const form = document.getElementById('uploadForm');
+const fileInput = document.getElementById('fileInput');
+const progressContainer = document.getElementById('progress-container');
+const progressBar = document.getElementById('progress');
+const progressValue = document.getElementById('progress-value');
+const statusMessage = document.getElementById('status-message');
+const downloadContainer = document.getElementById('download-container');
+const downloadLink = document.getElementById('download-link');
+const dropZone = document.getElementById('drop-zone');
 
-uppy.on('upload-success', (file, response) => {
-    console.log('Upload completo!', file, response);
-    // Iniciar a conversão no servidor (o servidor retorna o jobId)
-    socket.emit('subscribeToProgress', response.body.jobId);
-});
-
-uppy.on('upload-progress', (file, progress) => {
-    document.getElementById('upload-progress').textContent = progress.percentage.toFixed(0);
-});
-
-socket.on('conversionProgress', (data) => {
-    document.getElementById('conversion-progress').textContent = data.progress.toFixed(0);
-});
-
-socket.on('conversionComplete', (data) => {
-    console.log('Conversão completa!', data);
-    // Exibir link para download ou fazer redirecionamento, etc.
-    const downloadLink = document.createElement('a');
-    downloadLink.href = data.downloadUrl; // URL do arquivo convertido (o servidor enviará)
-    downloadLink.download = data.filename; // Nome do arquivo para download
-    downloadLink.textContent = 'Baixar MP4';
-    document.getElementById('progress-container').appendChild(downloadLink);
-});
-
-uppy.on('error', (error) => {
-    console.error('Uppy error:', error);
+// Debug logs
+socket.on('connect', () => {
+    console.log('Conectado ao servidor via Socket.IO');
+    updateStatus('Conectado ao servidor', 'success');
 });
 
 socket.on('connect_error', (error) => {
-    console.error('Socket.IO connection error:', error);
+    console.error('Erro de conexão Socket.IO:', error);
+    updateStatus('Erro de conexão com o servidor: ' + error.message, 'error');
 });
 
-socket.on('connect', () => {
-    console.log('Conectado ao Socket.IO');
+form.onsubmit = async (e) => {
+    e.preventDefault();
+    
+    const file = fileInput.files[0];
+    if (!file) {
+        updateStatus('Por favor, selecione um arquivo de vídeo', 'error');
+        return;
+    }
+
+    // Validar extensão do arquivo
+    const ext = file.name.split('.').pop().toLowerCase();
+    const validExtensions = ['ts', 'mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', 'm4v', 'mpg', 'mpeg', '3gp', '3g2'];
+    if (!validExtensions.includes(ext)) {
+        updateStatus('Formato de arquivo não suportado. Formatos aceitos: ' + validExtensions.join(', '), 'error');
+        return;
+    }
+
+    // Mostrar container de progresso
+    progressContainer.style.display = 'block';
+    downloadContainer.style.display = 'none';
+    updateStatus('Iniciando upload...', 'info');
+    updateProgress(0);
+    
+    const formData = new FormData();
+    formData.append('video', file);
+
+    try {
+        console.log('Iniciando upload para:', API_URL + '/upload');
+        const response = await fetch(API_URL + '/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Erro no upload');
+        }
+
+        const data = await response.json();
+        console.log('Upload bem-sucedido:', data);
+        updateStatus('Arquivo recebido, iniciando conversão...', 'info');
+        
+        socket.emit('subscribeToConversion', data.id);
+    } catch (error) {
+        console.error('Erro durante upload:', error);
+        updateStatus('Erro: ' + error.message, 'error');
+        progressContainer.style.display = 'none';
+    }
+};
+
+// Funções de atualização da interface
+function updateStatus(message, type = 'info') {
+    statusMessage.textContent = message;
+    statusMessage.className = 'status-' + type;
+    console.log(`[${type}] ${message}`);
+}
+
+function updateProgress(percent) {
+    progressBar.style.width = percent + '%';
+    progressValue.textContent = Math.round(percent);
+}
+
+// Socket.IO event handlers
+socket.on('conversionProgress', (data) => {
+    console.log('Progresso da conversão:', data);
+    updateProgress(data.progress);
+    updateStatus(`Convertendo: ${Math.round(data.progress)}%`, 'info');
 });
+
+socket.on('conversionComplete', (data) => {
+    console.log('Conversão concluída:', data);
+    updateStatus('Conversão concluída!', 'success');
+    downloadContainer.style.display = 'block';
+    downloadLink.href = API_URL + data.downloadUrl;
+    downloadLink.download = data.filename;
+});
+
+socket.on('conversionError', (error) => {
+    console.error('Erro na conversão:', error);
+    updateStatus('Erro na conversão: ' + error.message, 'error');
+});
+
+// Drag and drop
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, preventDefaults, false);
+    document.body.addEventListener(eventName, preventDefaults, false);
+});
+
+function preventDefaults (e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+['dragenter', 'dragover'].forEach(eventName => {
+    dropZone.addEventListener(eventName, highlight, false);
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, unhighlight, false);
+});
+
+function highlight(e) {
+    dropZone.classList.add('highlight');
+}
+
+function unhighlight(e) {
+    dropZone.classList.remove('highlight');
+}
+
+dropZone.addEventListener('drop', handleDrop, false);
+
+function handleDrop(e) {
+    const dt = e.dataTransfer;
+    const file = dt.files[0];
+    fileInput.files = dt.files;
+    
+    if (file) {
+        console.log('Arquivo recebido via drag&drop:', file.name);
+        form.requestSubmit();
+    }
+}

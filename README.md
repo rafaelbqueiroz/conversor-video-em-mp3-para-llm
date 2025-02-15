@@ -85,11 +85,18 @@ npm start
    - Acesse [vercel.com](https://vercel.com)
    - Clique em "New Project"
    - Importe seu repositório do GitHub
-   - Configure as variáveis de ambiente:
+   - Na configuração do projeto:
+     - Framework Preset: Selecione "Other"
+     - Root Directory: `./`
+     - Build Command: Deixe vazio
+     - Output Directory: `client`
+   - Configure as variáveis de ambiente (se necessário):
      ```
      NEXT_PUBLIC_API_URL=https://seu-backend.com
      ```
    - Clique em "Deploy"
+
+> **Nota**: Usamos "Other" como Framework Preset porque este é um projeto vanilla (HTML/CSS/JS puro) sem framework específico. O Vercel vai servir os arquivos estáticos diretamente da pasta `client`.
 
 ### Backend (Servidor Dedicado)
 

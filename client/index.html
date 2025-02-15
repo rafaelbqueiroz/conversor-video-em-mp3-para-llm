@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,14 +20,13 @@
 
         <form id="uploadForm">
             <div class="upload-area" id="drop-zone">
-                <input type="file" id="fileInput" accept=".ts,.mp4,.avi,.mkv,.mov,.wmv,.flv,.webm,.m4v,.mpg,.mpeg,.3gp,.3g2" required>
+                <input type="file" id="fileInput" accept=".ts,.mp4,.avi,.mkv,.mov,.wmv,.flv,.webm,.m4v,.mpg,.mpeg,.3gp,.3g2">
                 <div class="upload-icon">📁</div>
                 <label for="fileInput" class="file-label">
-                    Arraste um arquivo de vídeo aqui<br>
-                    <span style="font-size: 0.9em; color: #888;">ou clique para selecionar</span>
+                    Arraste um arquivo de vídeo aqui ou clique para selecionar
                 </label>
             </div>
-            <button type="submit" id="uploadButton">Converter para MP3</button>
+            <button type="submit" id="uploadButton" disabled>Converter para MP3</button>
         </form>
 
         <div id="progress-container" style="display: none;">
@@ -35,11 +34,11 @@
                 <div id="progress" class="progress-fill"></div>
             </div>
             <p class="progress-text">Progresso: <span id="progress-value">0</span>%</p>
-            <p id="status-message"></p>
+            <p id="status-message" class="status-info">Selecione um arquivo para começar</p>
         </div>
 
         <div id="download-container" style="display: none;">
-            <a id="download-link" class="download-button">
+            <a id="download-link" class="download-button" href="#">
                 <span class="download-icon">⬇️</span> Baixar MP3
             </a>
         </div>
